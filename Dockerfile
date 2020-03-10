@@ -15,7 +15,7 @@ RUN apt-get -y install python3.7
 
 RUN wget https://bootstrap.pypa.io/get-pip.py
 RUN python3.7 get-pip.py
-COPY . /app
+COPY bot /app
 WORKDIR /app
 RUN python3.7 -m pip install -r requirements.txt
 ENTRYPOINT ['python']

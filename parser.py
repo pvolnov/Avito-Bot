@@ -6,8 +6,9 @@ from datetime import datetime
 import requests
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
+from selenium.webdriver.common.keys import Keys
 
-from bot.models import Tasks, Items
+from models import Tasks, Items
 
 
 async def fetch(task: Tasks, session):
@@ -41,11 +42,11 @@ class Parser:
             url = self.driver.current_url
             time.sleep(3)
             try:
-                self.driver.find_element_by_tag_name("textarea").send_keys(text)  # Keys.ENTER
+                self.driver.find_element_by_tag_name("textarea").send_keys(text, Keys.ENTER)  # Keys.ENTER
             except Exception as e:
                 print("textarea error", e)
                 time.sleep(6)
-                self.driver.find_element_by_tag_name("textarea").send_keys(text)  # Keys.ENTER
+                self.driver.find_element_by_tag_name("textarea").send_keys(text, Keys.ENTER)  # Keys.ENTER
             time.sleep(1)
             return url
         except Exception as e:
@@ -87,7 +88,7 @@ class Parser:
 
         return items
 
-    async def update_tasks(self):
+    async def update_tasks(self, save=False, message=True):
         tasks = Tasks.select()
         workers = []
         async with ClientSession() as session:
@@ -99,12 +100,18 @@ class Parser:
 
         for page, task in pages:
             items = self.get_items_from_page(page)
-            print(f"Обновлен раздел {task.name}, получено {len(items)} товаров")
+            print(f"Обновлен раздел {task.name}, получено {len(items)} товаров time: {datetime.now()}")
+            old_items = Items.select().execute()
+            old_items_urls = [i.url for i in old_items]
+            for i in items:
+                if i["url"] not in old_items_urls:
+                    print("New item:", i["url"])
+                    if int(i["cost"]) <= task.max_cost and not save:
+                        if message:
+                            i["message_url"] = self.send_mail(i["url"], task.message_text)
+                        else:
+                            i["message_url"] = None
 
-            for i in items[:3]:
-                if Items.select().where(Items.url == i["url"]).count() == 0:
-                    if int(i["cost"]) <= task.max_cost:
-                        i["message_url"] = self.send_mail(i["url"], task.message_text)
                         if i["message_url"] is None:
                             self.alarm(
                                 f"Добавлен новый товар {i['name']} по цене {i['cost']}, но сообщение отправлять нельзя\n{i['url']}")
@@ -112,8 +119,6 @@ class Parser:
                             i["surveillance"] = True
                             self.alarm(f"Новое сообщение отправлено {i['name']} ({i['cost']})\n{i['message_url']}")
                     Items.create(**i)
-                else:
-                    break
 
     def check_new_messanges(self):
         for item in Items.select().where((Items.response == False) & (Items.surveillance == True)).order_by(
