@@ -3,6 +3,7 @@ import configparser
 import os.path
 import pickle
 import sys
+import time
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -22,13 +23,14 @@ start_mes = """
 ║╔╗║╚╗╔╝║╚╝║─║╚╗║╚╝║     ║╚╝║║╚╝║─║╚╗
 ╚╝╚╝─╚╝─╚══╝─╚═╝╚══╝     ╚══╝╚══╝─╚═╝
 """
+version = 2
 
 if __name__ == "__main__":
     Tasks.delete().execute()
     if "-c" in sys.argv:
         Items.delete().execute()
         print("Данные очищенны")
-        exit(0)
+        sys.exit(0)
 
     for conf in config.sections():
         if conf != "SETTING":
@@ -37,29 +39,34 @@ if __name__ == "__main__":
             Tasks.create(**inf)
 
     print(start_mes)
-    print(f"Парситься разделов: {Tasks.select().count()}")
+    print(f"Парситься разделов: {Tasks.select().count()}, версия: {version}")
 
-    parser = Parser(None, alamer_key=config.get("SETTING", "alamer_key"))
-    loop = asyncio.get_event_loop()
+    parser = Parser(None, alamer_keys=[config.get("SETTING", "alamer_key"),
+                                       config.get("SETTING", "alamer_key2")])
 
     if "-m" in sys.argv:
         print("Запущен в режиме мониторинга")
-        for _ in range(100000):
+        while True:
             print("=====================")
-            future = asyncio.ensure_future(parser.update_tasks(message=False))
-            loop.run_until_complete(future)
-        exit(0)
+            parser.update_tasks(message=False)
+            time.sleep(5)
+        sys.exit(0)
 
     if "-s" in sys.argv:
-        future = asyncio.ensure_future(parser.update_tasks(save=True))
-        loop.run_until_complete(future)
+        parser.update_tasks(save=True)
         print("Данные сохранены")
-        exit(0)
+        sys.exit(0)
 
     options = Options()
     if os.path.exists("cookies.pickle"):
-        options.headless = True
+        options.headless = ("-v" not in sys.argv)
+
+    # url = 'http://185.231.154.172:4444/wd/hub'
+    # descaps = {'browserName': 'firefox',"platform": "LINUX", 'loggingPrefs': {'performance': 'INFO'}}
+    # driver = webdriver.Remote(command_executor=url, desired_capabilities=descaps)
     driver = webdriver.Firefox(options=options, executable_path='/usr/local/bin/geckodriver')
+
+
     driver.get("https://www.avito.ru")
 
     if os.path.exists("cookies.pickle"):
@@ -82,16 +89,17 @@ if __name__ == "__main__":
     if "Вход и регистрация" in driver.page_source:
         os.remove("cookies.pickle")
         input("Файл cookies просрочен, перезапустите скрипт для запуска браузера и прохождения авторизации")
-        exit(0)
+        sys.exit(0)
     else:
         print("Аккаунт авторизирован")
 
-    parser = Parser(driver, alamer_key=config.get("SETTING", "alamer_key"))
-    loop = asyncio.get_event_loop()
+    parser = Parser(driver, alamer_keys = [config.get("SETTING", "alamer_key"),
+                             config.get("SETTING", "alamer_key2")])
+    # loop = asyncio.get_event_loop()
 
-    for _ in range(100000):
+    while True:
         print("=====================")
-        future = asyncio.ensure_future(parser.update_tasks())
-        loop.run_until_complete(future)
+        parser.update_tasks()
         parser.check_new_messanges()
+        time.sleep(5)
     driver.quit()

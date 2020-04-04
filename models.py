@@ -10,8 +10,10 @@ ALAMER = "df548f-61ac83-624ea4"
 
 class Items(Model):
     name = TextField()
+    discr = TextField(default="")
+    new = BooleanField(default=True)
     photo = TextField()
-    url = TextField()
+    url = TextField(unique=True)
     cost = IntegerField()
 
     message_url = TextField(default="")
@@ -26,7 +28,11 @@ class Items(Model):
 class Tasks(Model):
     name = TextField()
     url = TextField()
+    model = TextField()
+    params = TextField()
     max_cost = IntegerField()
+    mes_cost = IntegerField()
+    min_cost = IntegerField()
     message_text = TextField()
 
     class Meta:
@@ -35,5 +41,6 @@ class Tasks(Model):
 
 db.start()
 db.connect()
+# db.drop_tables([Tasks,Items])
 # db.create_tables([Tasks,Items])
 # db.stop()
