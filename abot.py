@@ -74,7 +74,6 @@ def get_page(base_url, page):
         return driver.page_source
 
     except WebDriverException:
-        driver.quit()
         driver = webdriver.Remote(
             command_executor="http://dig2.neafiol.site:4444/wd/hub",
             desired_capabilities={"browserName": "firefox", "sessionTimeout": "5m"},
