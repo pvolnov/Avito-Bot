@@ -7,6 +7,7 @@ import traceback
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import DesiredCapabilities
 
 from models import Items
@@ -62,13 +63,23 @@ def get_page(base_url, page):
     #                      "p": page},
     #                  cookies=cookies
     #                  )
-    driver.get(base_url + f"?s=104&cd=1&p={page}")
-    if "http://yandex.ru/internet" in driver.page_source:
-        # if "http://yandex.ru/internet" in r.text:
-        print("Banned")
-        update_cookies(base_url)
-    # return r.text
-    return driver.page_source
+    global driver
+    try:
+        driver.get(base_url + f"?s=104&cd=1&p={page}")
+        if "http://yandex.ru/internet" in driver.page_source:
+            # if "http://yandex.ru/internet" in r.text:
+            print("Banned")
+            update_cookies(base_url)
+        # return r.text
+        return driver.page_source
+
+    except WebDriverException:
+        driver.quit()
+        driver = webdriver.Remote(
+            command_executor="http://dig2.neafiol.site:4444/wd/hub",
+            desired_capabilities={"browserName": "firefox", "sessionTimeout": "5m"},
+        )
+        return get_page(base_url, page)
 
 
 def alarm_error(text):
